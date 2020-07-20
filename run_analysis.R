@@ -1,37 +1,63 @@
 library(data.table)
 library(dplyr)
 
-activitytest <- read.table("./test/y_test.txt", header = F)
-activitytrain <- read.table("./train/y_train.txt", header = F)
+setwd("/Users/ibraheemqureshi/R/Getting-and-Cleaning-Data-Course-Project")
 
-subjecttest <- read.table("./test/subject_test.txt")
-subjecttrain <- read.table("./train/subject_train.txt")
+atest <- read.table("./test/y_test.txt", header = F)
+atrain <- read.table("./train/y_train.txt", header = F)
 
-featurestest <- read.table("./test/X_test.txt")
-featurestrain <- read.table("./train/X_train.txt")
+###Read features files
+ftest <- read.table("./test/X_test.txt", header = F)
+ftrain <- read.table("./train/X_train.txt", header = F)
 
-activitylabels <- read.table("./activity_labels.txt", header = F)
+#Read subject files
+stest <- read.table("./test/subject_test.txt", header = F)
+strain <- read.table("./train/subject_train.txt", header = F)
 
-featuresnames <- read.table("./features.txt", header = F)
+####Read Activity Labels
+alabels <- read.table("./activity_labels.txt", header = F)
 
-featuresbind <- rbind(featurestest, featurestrain)
-subjectbind <- rbind(subjecttest, subjecttrain)
-activitybind <- rbind(activitytest, activitytrain)
+#####Read Feature Names
+fnames <- read.table("./features.txt", header = F)
 
-names(activitylabels) <- c("ActivityN", "Activity")
-names(activitybind) <- "ActivityN"
+#####Merg dataframes: Features Test&Train,Activity Test&Train, Subject Test&Train
+fdata <- rbind(ftest, ftrain)
+sdata <- rbind(stest, strain)
+adata <- rbind(atest, atrain)
 
-activitydata <- left_join(activitybind, activitylabels, "ActivityN")[, 2]
+####Renaming colums in ActivityData & ActivityLabels dataframes
+names(adata) <- "ActivityN"
+names(alabels) <- c("ActivityN", "Activity")
 
-names(subjectbind) <- "Subject"
+####Get factor of Activity names
+activity <- left_join(adata, alabels, "ActivityN")[, 2]
 
-names(featuresbind) <- featuresnames$V2
+####Rename SubjectData columns
+names(sdata) <- "Subject"
 
-data <- cbind(subjectbind, activitydata)
-data <- cbind(data, featuresbind)
+#Rename FeaturesData columns using columns from FeaturesNames
+names(fdata) <- fnames$V2
 
-datanames <- c("Subject", "Activity", featuresnames$V2[grep("mean\\(\\)|std\\(\\)", featuresnames$V2)])
-datanames <- as.character(datanames)
+###Create one large Dataset with only these variables: SubjectData,  Activity,  FeaturesData
+data <- cbind(sdata, activity)
+data <- cbind(data, fdata)
 
-data <- subset(data, select = datanames)
+###Create New datasets by extracting only the measurements on the mean and standard deviation for each measurement
+subfnames <- fnames$V2[grep("mean\\(\\)|std\\(\\)", FeaturesNames$V2)]
+datanames <- c("Subject", "Activity", as.character(subfnames))
+data <- subset(data, select=datanames)
 
+#####Rename the columns of the large dataset using more descriptive activity names
+names(DataSet)<-gsub("^t", "time", names(DataSet))
+names(DataSet)<-gsub("^f", "frequency", names(DataSet))
+names(DataSet)<-gsub("Acc", "Accelerometer", names(DataSet))
+names(DataSet)<-gsub("Gyro", "Gyroscope", names(DataSet))
+names(DataSet)<-gsub("Mag", "Magnitude", names(DataSet))
+names(DataSet)<-gsub("BodyBody", "Body", names(DataSet))
+
+####Create a second, independent tidy data set with the average of each variable for each activity and each subject
+data2<-aggregate(. ~Subject + activity, data, mean)
+data2<-data2[order(data2$Subject,data2$activity),]
+
+#Save this tidy dataset to local file
+write.table(data2, file = "finaldata.txt",row.name=FALSE)
